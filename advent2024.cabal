@@ -2,24 +2,49 @@ cabal-version:      3.4
 name:               advent2024
 version:            0.1.0.0
 synopsis:           Advent of code 2024
--- description:
+description:        Solutions to the Advent of Code 2024
 license:            MIT
 license-file:       LICENSE
 author:             Patrick Herrmann
 maintainer:         patrickwherrmann@gmail.com
--- copyright:
 build-type:         Simple
 extra-doc-files:    CHANGELOG.md
--- extra-source-files:
+
+common language
+  default-language: GHC2021
+  default-extensions: LambdaCase
 
 common warnings
     ghc-options: -Wall
 
 executable advent2024
+    import:           language
     import:           warnings
     main-is:          Main.hs
-    -- other-modules:
-    -- other-extensions:
-    build-depends:    base ^>=4.17.2.1
+    other-modules: Day01
+                 , Day02
+                 , Day03
+                 , Day04
+                 , Day05
+                 , Day06
+                 , Day07
+                 , Day08
+                 , Day09
+                 , Day10
+                 , Day11
+                 , Day12
+                 , Day13
+                 , Day14
+                 , Day15
+                 , Day16
+                 , Day17
+                 , Day18
+                 , Day19
+                 , Day20
+                 , Day21
+                 , Day22
+                 , Day23
+                 , Day24
+                 , Day25
+    build-depends:    base ^>=4.17.2.1, containers
     hs-source-dirs:   app
-    default-language: GHC2021
