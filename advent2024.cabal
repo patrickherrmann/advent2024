@@ -46,5 +46,5 @@ executable advent2024
                  , Day23
                  , Day24
                  , Day25
-    build-depends:    base ^>=4.17.2.1, containers
+    build-depends:    base ^>=4.17.2.1, containers, text, megaparsec, multiset
     hs-source-dirs:   app

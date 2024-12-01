@@ -1,21 +1,26 @@
 module Day01 where
+
+import Parsing
 import Data.List
-import Data.Set (fromList, member)
+import qualified Data.MultiSet as MultiSet
 
 part1 :: String -> String
 part1 input = show $ sum $ zipWith diff (sort xs) (sort ys)
   where
-    (xs, ys) = parseInput input
+    (xs, ys) = parseLists input
     diff x y = abs (x - y)
 
 part2 :: String -> String
-part2 input = show $ sum $ filter (`member` xsSet) ys
+part2 input = show $ sum $ map (\y -> y * MultiSet.occur y xsSet) ys
   where
-    xsSet = fromList xs
-    (xs, ys) = parseInput input
+    (xs, ys) = parseLists input
+    xsSet = MultiSet.fromList xs
 
-parseInput :: String -> ([Int], [Int])
-parseInput = unzip . map parseLine . lines
+parseLists :: String -> ([Int], [Int])
+parseLists = unzip . parseUnsafe (line `sepBy` newline)
   where
-    parseLine :: String -> (Int, Int)
-    parseLine = (\[x, y] -> (read x, read y)) . words
+    line = do
+      a <- decimal
+      space
+      b <- decimal
+      return (a, b)
