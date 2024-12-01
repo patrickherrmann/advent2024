@@ -1,7 +1,7 @@
 module Day14 where
 
-a :: String -> String
-a _ = "Day 14a not implemented yet"
+part1 :: String -> String
+part1 _ = "Day 14a not implemented yet"
 
-b :: String -> String
-b _ = "Day 14b not implemented yet"
+part2 :: String -> String
+part2 _ = "Day 14b not implemented yet"
