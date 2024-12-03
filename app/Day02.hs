@@ -1,17 +1,27 @@
 module Day02 where
 
 part1 :: String -> String
-part1 = show . length . filter safe . map diffs . parseReports
+part1 = show . length . filter safe . parseReports
+
+part2 :: String -> String
+part2 = show . length . filter (\r -> safe r || any safe (dampenings r)) . parseReports
+
+safe :: Report -> Bool
+safe r = all safeInc r' || all safeDec r'
   where
-    diffs r = zipWith subtract r (tail r)
-    safe r' = all safeInc r' || all safeDec r'
+    r' = zipWith subtract r (tail r)
     safeInc dl = dl >= 1 && dl <= 3
     safeDec dl = dl <= -1 && dl >= -3
 
-part2 :: String -> String
-part2 _ = "Day 02b not implemented yet"
+-- All the ways to skip a level
+dampenings :: Report -> [Report]
+dampenings = \case
+  [] -> []
+  (l:ls) -> ls : map (l :) (dampenings ls)
 
-parseReports :: String -> [[Int]]
+type Report = [Int]
+
+parseReports :: String -> [Report]
 parseReports = map report . lines
   where
     report = map read . words
