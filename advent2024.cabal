@@ -12,7 +12,7 @@ extra-doc-files:    README.md
 
 common language
   default-language: GHC2021
-  default-extensions: LambdaCase
+  default-extensions: LambdaCase, ViewPatterns
 
 common warnings
     ghc-options: -Wall
@@ -47,5 +47,5 @@ executable advent2024
                  , Day24
                  , Day25
                  , Parsing
-    build-depends:    base ^>=4.17.2.1, containers, text, megaparsec, multiset
+    build-depends:    base ^>=4.17.2.1, containers, text, megaparsec, multiset, bytestring
     hs-source-dirs:   app

@@ -1,20 +1,20 @@
 module Day04 where
 
-import Data.List
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Char8 as BC
 
 part1 :: String -> String
-part1 input = show . sum $ map (\p -> search "XMAS" p + search "SAMX" p) (paths grid)
+part1 (BC.pack -> input) = show . sum $ map (\c -> length (filter (check c) xmases)) coords
   where
-    grid = lines input
-    paths g = g ++ transpose g ++ tlbr g ++ trbl g
-    tlbr g = transpose (zipWith drop [0..] g) ++ transpose (zipWith drop [1..] (transpose g))
-    trbl g = tlbr (reverse g)
-
-search :: String -> String -> Int
-search needle haystack
-  | null haystack = 0
-  | needle `isPrefixOf` haystack = 1 + search needle (drop (length needle) haystack)
-  | otherwise = search needle (tail haystack)
+    check (x, y) = all (\(c, (dx, dy)) -> charAt (x + dx, y + dy) == Just c)
+    coords = [(x, y) | y <- [0..n - 1], x <- [0..n - 1]]
+    xmases = zip "XMAS" <$> dirs
+    dirs = tail $ zip <$> [same, inc, dec] <*> [same, inc, dec]
+    inc = [0..]
+    dec = [0,-1..]
+    same = [0,0..]
+    charAt (x, y) = BC.indexMaybe input $ y * (n + 1) + x
+    Just n = B.elemIndex 10 input
 
 part2 :: String -> String
 part2 _ = "Day 04b not implemented yet"
