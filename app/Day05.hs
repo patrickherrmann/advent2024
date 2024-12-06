@@ -1,19 +1,23 @@
 module Day05 where
 
 import Parsing
-import Data.List (elemIndex)
+import Data.List
+import Control.Monad (msum)
 
 part1 :: String -> String
-part1 input = show . sum . map middle $ filter (\u -> all (satisfies u) rules) updates
+part1 input = show . sum . map middle $ filter (followsAll rules) updates
   where
     (rules, updates) = parseInput input
-    middle s = s !! (length s `div` 2)
-    satisfies update (a, b) = case (elemIndex a update, elemIndex b update) of
-      (Just ai, Just bi) -> ai < bi
-      _ -> True
 
 part2 :: String -> String
-part2 _ = "Day 05b not implemented yet"
+part2 input = show . sum . map middle $ map reorder badUpdates
+  where
+    (rules, updates) = parseInput input
+    badUpdates = filter (not . followsAll rules) updates
+    reorder u = case msum (violation u <$> rules) of
+      Nothing -> u
+      Just i -> reorder $ moveToFront i u
+    moveToFront i xs = let (a, b) = splitAt i xs in head b : a ++ tail b
 
 type Rule = (Int, Int)
 type Update = [Int]
@@ -31,3 +35,17 @@ parseInput = parseUnsafe $ do
       b <- decimal
       return (a, b)
     update = decimal `sepBy` char ','
+
+followsAll :: [Rule] -> Update -> Bool
+followsAll rules update = all (satisfies update) rules
+
+satisfies :: Update -> Rule -> Bool
+satisfies u r = violation u r == Nothing
+
+violation :: Update -> Rule -> Maybe Int
+violation update (a, b) = case (elemIndex a update, elemIndex b update) of
+  (Just ai, Just bi) -> if ai < bi then Nothing else Just ai
+  _ -> Nothing
+
+middle :: [a] -> a
+middle xs = xs !! (length xs `div` 2)
