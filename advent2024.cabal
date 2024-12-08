@@ -49,3 +49,4 @@ executable advent2024
                  , Parsing
     build-depends:    base ^>=4.17.2.1, containers, text, megaparsec, multiset, bytestring
     hs-source-dirs:   app
+    ghc-options: -O2

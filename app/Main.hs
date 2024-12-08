@@ -1,5 +1,6 @@
 module Main where
 
+import System.IO
 import System.Environment (getArgs)
 import Data.Map (Map, fromList, (!))
 import Data.Foldable (for_)
@@ -35,6 +36,7 @@ main = do
   dayParts <- parseArgs <$> getArgs
   for_ dayParts $ \(day, part) ->  do
     putStr $ "Running day " ++ day ++ part ++ "..."
+    hFlush stdout
     input <- readFile $ "input/Day" ++ day ++ ".txt"
     let output = (solutions ! (day, part)) input
     writeFile ("output/Day" ++ day ++ "-" ++ part ++ ".txt") output
