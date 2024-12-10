@@ -7,8 +7,8 @@ part1 input = show $ checksum $ take (sum fileSizes) condense
     fileSizes = everyOther ints
     ints = map (read . (: [])) input
     condense = go 0 ints (reverse fileContent)
-    go id (fs:ss:is) filler = replicate fs id ++ take ss filler ++ go (id + 1) is (drop ss filler)
-    go id (fs:[]) filler = replicate fs id
+    go fid (fs:ss:is) filler = replicate fs fid ++ take ss filler ++ go (fid + 1) is (drop ss filler)
+    go fid (fs:[]) _ = replicate fs fid
     go _ [] _ = []
 
 checksum :: [Int] -> Int
