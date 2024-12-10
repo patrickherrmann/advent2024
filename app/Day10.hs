@@ -10,26 +10,30 @@ part1 :: String -> String
 part1 input = show $ sum $ map (scores !) (trailheads g)
   where
     g = parseInput input
-    scores = computeScores g
+    scores = runSTUArray $ do
+      a <- newArray (bounds g) 0
+      forM_ (indices g) $ incScores g a
+      return a
+
 
 part2 :: String -> String
-part2 _ = "Day 10b not implemented yet"
+part2 input = show $ sum $ map (ratings !) (trailheads g)
+  where
+    g = parseInput input
+    ratings = runSTUArray $ do
+      a <- newArray (bounds g) 0
+      forM_ (indices g) $ incRatings g a
+      return a
 
 type Coord = (Int, Int)
 type Height = Int
 type Grid = UArray Coord Height
-type Scores s = STUArray s Coord Int
+type Values s = STUArray s Coord Int
 
 trailheads :: Grid -> [Coord]
 trailheads g = [c | c <- indices g, g ! c == 0]
 
-computeScores :: Grid -> UArray Coord Int
-computeScores g = runSTUArray $ do
-  scores <- newArray (bounds g) 0
-  forM_ (indices g) $ incScores g scores
-  return scores
-
-incScores :: Grid -> Scores s -> Coord -> ST s ()
+incScores :: Grid -> Values s -> Coord -> ST s ()
 incScores g scores = void . go 9 []
   where
     go h v c
@@ -42,6 +46,17 @@ incScores g scores = void . go 9 []
           else return v'
       | otherwise = return v
 
+incRatings :: Grid -> Values s -> Coord -> ST s ()
+incRatings g ratings = go 9
+  where
+    go h c
+      | inRange (bounds g) c && g ! c == h = do
+        s <- readArray ratings c
+        writeArray ratings c (s + 1)
+        if (h > 0)
+          then forM_ (neighbors c) (go (h -1))
+          else return ()
+      | otherwise = return ()
 
 neighbors :: Coord -> [Coord]
 neighbors (x, y) = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
