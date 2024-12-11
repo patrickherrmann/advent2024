@@ -12,7 +12,7 @@ extra-doc-files:    README.md
 
 common language
   default-language: GHC2021
-  default-extensions: LambdaCase, ViewPatterns
+  default-extensions: LambdaCase, ViewPatterns, PatternSynonyms
 
 common warnings
     ghc-options: -Wall
