@@ -1,7 +1,6 @@
 module Day14 where
 
 import Parsing
-import Data.Array.Unboxed
 import qualified Data.MultiSet as MultiSet
 import Data.Maybe (mapMaybe, fromJust)
 import Data.List (findIndex)
@@ -10,7 +9,12 @@ part1 :: String -> String
 part1 = show . safetyFactor . (!! 100) . iterate (map move) . parseInput
 
 part2 :: String -> String
-part2 = show . fromJust . findIndex lowEntropy . iterate (map move) . parseInput
+part2 input = show index
+  where
+    index = firstEqual (iterate (+ width) xMod) (iterate (+ height) yMod)
+    xMod = minIndex $ map (entropy . map x) (take width states)
+    yMod = minIndex $ map (entropy . map y) (take height states)
+    states = iterate (map move) (parseInput input)
 
 safetyFactor :: [Robot] -> Int
 safetyFactor = product . counts . mapMaybe quad
@@ -45,28 +49,20 @@ wrap n x
   | x >= n = x - n
   | otherwise = x
 
-lowEntropy :: [Robot] -> Bool
-lowEntropy rs = xEntropy < 0.9 && yEntropy < 0.9
-  where
-    xEntropy = entropy (map x rs) / maxEntropy width
-    yEntropy = entropy (map y rs) / maxEntropy height
+minIndex :: (Ord a) => [a] -> Int
+minIndex xs = fromJust $ findIndex (== minimum xs) xs
 
-maxEntropy :: Int -> Double
-maxEntropy = logBase 2 . fromIntegral
+firstEqual :: (Ord a) => [a] -> [a] -> a
+firstEqual (x:xs) (y:yx) = case compare x y of
+  LT -> firstEqual xs (y:yx)
+  EQ -> x
+  GT -> firstEqual (x:xs) yx
 
 entropy :: (Ord a) => [a] -> Double
 entropy xs = - sum [p * logBase 2 p | p <- probs, p > 0]
   where
     probs = map (\c -> fromIntegral c / total) (counts xs)
     total = fromIntegral (length xs)
-
-type Grid = UArray (Int, Int) Int
-
-draw :: Grid -> String
-draw g = unlines [[if g ! (x, y) > 0 then '#' else '.' | x <- [0..width - 1]] | y <- [0..height - 1]]
-
-grid :: [Robot] -> Grid
-grid rs = accumArray (+) 0 ((0, 0), (width - 1, height - 1)) [((x r, y r), 1) | r <- rs]
 
 parseInput :: String -> [Robot]
 parseInput = parseUnsafe (robot `sepBy` newline)
