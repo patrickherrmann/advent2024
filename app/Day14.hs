@@ -2,25 +2,31 @@ module Day14 where
 
 import Parsing
 import Data.Array.Unboxed
+import qualified Data.MultiSet as MultiSet
+import Data.Maybe (mapMaybe, fromJust)
+import Data.List (findIndex)
 
 part1 :: String -> String
-part1 = show . safetyFactor . countQuads . (!! 100) . iterate (map move) . parseInput
+part1 = show . safetyFactor . (!! 100) . iterate (map move) . parseInput
 
 part2 :: String -> String
-part2 = draw . grid . (!! 6243) . iterate (map move) . parseInput
+part2 = show . fromJust . findIndex lowEntropy . iterate (map move) . parseInput
 
-safetyFactor :: (Int, Int, Int, Int) -> Int
-safetyFactor (nw, ne, sw, se) = nw * ne * sw * se
+safetyFactor :: [Robot] -> Int
+safetyFactor = product . counts . mapMaybe quad
 
-countQuads :: [Robot] -> (Int, Int, Int, Int)
-countQuads = foldr go (0, 0, 0, 0)
-  where
-    go r (nw, ne, sw, se)
-      | x r < 50 && y r < 51 = (nw + 1, ne, sw, se)
-      | x r > 50 && y r < 51 = (nw, ne + 1, sw, se)
-      | x r < 50 && y r > 51 = (nw, ne, sw + 1, se)
-      | x r > 50 && y r > 51 = (nw, ne, sw, se + 1)
-      | otherwise = (nw, ne, sw, se)
+counts :: (Ord a) => [a] -> [Int]
+counts = map snd . MultiSet.toOccurList . MultiSet.fromList
+
+data Quad = NW | NE | SW | SE deriving (Eq, Ord)
+
+quad :: Robot -> Maybe Quad
+quad r
+  | x r < 50 && y r < 51 = Just NW
+  | x r > 50 && y r < 51 = Just NE
+  | x r < 50 && y r > 51 = Just SW
+  | x r > 50 && y r > 51 = Just SE
+  | otherwise = Nothing
 
 data Robot = Robot { x :: Int, y :: Int, vx :: Int, vy :: Int } deriving (Show)
 
@@ -39,9 +45,20 @@ wrap n x
   | x >= n = x - n
   | otherwise = x
 
-shannonEntropy :: [Double] -> Double
-shannonEntropy probabilities =
-  - sum [p * logBase 2 p | p <- probabilities, p > 0]
+lowEntropy :: [Robot] -> Bool
+lowEntropy rs = xEntropy < 0.9 && yEntropy < 0.9
+  where
+    xEntropy = entropy (map x rs) / maxEntropy width
+    yEntropy = entropy (map y rs) / maxEntropy height
+
+maxEntropy :: Int -> Double
+maxEntropy = logBase 2 . fromIntegral
+
+entropy :: (Ord a) => [a] -> Double
+entropy xs = - sum [p * logBase 2 p | p <- probs, p > 0]
+  where
+    probs = map (\c -> fromIntegral c / total) (counts xs)
+    total = fromIntegral (length xs)
 
 type Grid = UArray (Int, Int) Int
 
