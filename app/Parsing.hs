@@ -3,13 +3,14 @@ module Parsing
   , module Text.Megaparsec
   , module Text.Megaparsec.Char
   , decimal
+  , signed
   , void
   )
   where
 
 import Text.Megaparsec
 import Text.Megaparsec.Char
-import Text.Megaparsec.Char.Lexer (decimal)
+import Text.Megaparsec.Char.Lexer (decimal, signed)
 import Control.Monad (void)
 import Data.Void
 
