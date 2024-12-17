@@ -5,44 +5,59 @@ import Data.Array.ST
 import Data.STRef
 import Control.Monad.ST
 import Control.Monad (forM_, zipWithM_, mapM, foldM)
+import Data.List (elemIndex)
 
 part1 :: String -> String
 part1 input = show $ gpsSum finalGrid
   where
-    (normalGrid -> grid, dirs) = parseInput input
-    finalGrid = simulate1 dirs grid
+    (grid, dirs) = parseInput input
+    finalGrid = simulate dirs grid
 
 part2 :: String -> String
-part2 _ = "Day 15b not implemented yet"
+part2 input = show $ gpsSum finalGrid
+  where
+    (grid, dirs) = parseInput input
+    finalGrid = simulate dirs (widen grid)
 
 type Coord = (Int, Int)
 type Grid = UArray Coord Char
 type Dir = Char
 
 gpsSum :: Grid -> Int
-gpsSum grid = sum [gps c | c <- indices grid, grid ! c == 'O']
+gpsSum grid = sum [gps c | c <- indices grid, grid ! c `elem` "O["]
 
 gps :: Coord -> Int
 gps (y, x) = (y - 1) * 100 + (x - 1)
 
-simulate1 :: [Dir] -> Grid -> Grid
-simulate1 dirs grid = runSTUArray $ do
+simulate :: [Dir] -> Grid -> Grid
+simulate dirs grid = runSTUArray $ do
   g <- thaw grid
-  foldM (move g) (25, 25) dirs
+  foldM (move g) (robotPosition grid) dirs
   return g
 
-move :: STUArray s (Int, Int) Char -> Coord -> Dir -> ST s Coord
-move g p (offset -> d) = push c0
-  where
-    c0 = add d p
-    push c = readArray g c >>= \case
-      '#' -> return p
-      'O' -> push (add d c)
-      '.' -> do
-        writeArray g c 'O'
-        writeArray g p '.'
-        writeArray g c0 '@'
-        return c0
+move :: STUArray s Coord Char -> Coord -> Dir -> ST s Coord
+move g p (offset -> d) = push [p] [] >>= \case
+    Nothing -> return p
+    Just cs -> do
+      forM_ cs $ \c -> do
+        char <- readArray g c
+        writeArray g (add d c) char
+        writeArray g c '.'
+      return (add d p)
+    where
+      vert = fst d /= 0
+      push [] vs = return $ Just vs
+      push (c:cs) vs 
+        | c `elem` vs = push cs vs
+        | otherwise = readArray g c >>= \case
+          '#' -> return Nothing
+          '.' -> push cs vs
+          '[' | vert -> push (cs ++ [add d c, add (offset '>') c]) (c : vs)
+          ']' | vert -> push (cs ++ [add d c, add (offset '<') c]) (c : vs)
+          _ -> push (cs ++ [add d c]) (c : vs)
+
+robotPosition :: Grid -> Coord
+robotPosition grid = head [c | c <- indices grid, grid ! c == '@']
 
 add :: (Int, Int) -> (Int, Int) -> (Int, Int)
 add (y1, x1) (y2, x2) = (y1 + y2, x1 + x2)
@@ -54,20 +69,19 @@ offset = \case
   'v' -> (1, 0)
   '<' -> (0, -1)
 
-normalGrid :: String -> Grid
-normalGrid = listArray ((1, 1), (50, 50))
-
-wideGrid :: String -> Grid
-wideGrid = listArray ((1, 1), (50, 100)) . (>>= widen)
-  where
-    widen = \case
+widen :: Grid -> Grid
+widen g = listArray ((1, 1), (yn, xn * 2)) $ elems g >>= widenChar
+  where 
+    (_, (yn, xn)) = bounds g
+    widenChar = \case
       '.' -> ".."
       '#' -> "##"
       'O' -> "[]"
       '@' -> "@."
 
-parseInput :: String -> (String, [Dir])
-parseInput s = (filter (/= '\n') gridString, dirs)
+parseInput :: String -> (Grid, [Dir])
+parseInput s = (grid, filter (`elem` "^>v<") dirsString)
   where
-    (gridString, dirsString) = splitAt (50 * 51) s
-    dirs = filter (`elem` "^>v<") dirsString
+    grid = listArray ((1, 1), (n, n)) $ filter (/= '\n') gridString
+    (gridString, dirsString) = splitAt (n * (n + 1)) s
+    Just n = elemIndex '\n' s
