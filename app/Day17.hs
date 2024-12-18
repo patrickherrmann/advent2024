@@ -4,50 +4,47 @@ module Day17 where
 import Parsing
 import Data.Bits
 import Data.Array.Unboxed
-import Data.Foldable (toList)
-import Data.List (find)
-import Data.Maybe (fromJust)
+import Control.Monad (guard)
 
 part1 :: String -> String
 part1 = show . run . parseInput
 
 part2 :: String -> String
-part2 = show . a . fromJust . find quine . variations . parseInput
-
-variations :: Machine -> [Machine]
-variations m = [m { a = a' } | a' <- [0..]]
-
-quine :: Machine -> Bool
-quine m = run m == elems (instructions m)
+part2 = show . findA . parseInput
 
 run :: Machine -> [Int]
 run m
   | not $ inRange (bounds $ instructions m) (ip m) = []
-  | otherwise = case opcode m of
-      0 -> run $ m { a = a m `div` (2 ^ combo m), ip = ip m + 2 }
-      1 -> run $ m { b = b m `xor` operand m, ip = ip m + 2 }
-      2 -> run $ m { b = combo m `rem` 8, ip = ip m + 2 }
-      3 -> run $ if a m == 0 then m { ip = ip m + 2 } else m { ip = operand m }
+  | otherwise = case opcode of
+      0 -> run $ m { a = a m `shiftR` combo, ip = ip m + 2 }
+      1 -> run $ m { b = b m `xor` operand, ip = ip m + 2 }
+      2 -> run $ m { b = combo .&. 7, ip = ip m + 2 }
+      3 -> run $ if a m == 0 then m { ip = ip m + 2 } else m { ip = operand }
       4 -> run $ m { b = b m `xor` c m, ip = ip m + 2 }
-      5 -> combo m `rem` 8 : (run $ m { ip = ip m + 2 })
-      6 -> run $ m { b = a m `div` (2 ^ combo m), ip = ip m + 2 }
-      7 -> run $ m { c = a m `div` (2 ^ combo m), ip = ip m + 2 }
+      5 -> combo .&. 7 : (run $ m { ip = ip m + 2 })
+      6 -> run $ m { b = a m `shiftR` combo, ip = ip m + 2 }
+      7 -> run $ m { c = a m `shiftR` combo, ip = ip m + 2 }
+    where
+      opcode = instructions m ! ip m
+      operand = instructions m ! (ip m + 1)
+      combo = case operand of
+        4 -> a m
+        5 -> b m
+        6 -> c m
+        n -> n
 
-opcode :: Machine -> Int
-opcode m = instructions m ! ip m
+findA :: Machine -> Int
+findA m = minimum $ go (elems $ instructions m)
+  where
+    go [] = [0]
+    go is = do
+      highBits <- go (tail is)
+      lowBits <- [0..7]
+      let a = (highBits `shiftL` 3) .|. lowBits
+      guard $ (run m { a = a }) == is
+      return a
 
-operand :: Machine -> Int
-operand m = instructions m ! (ip m + 1)
-    
-combo :: Machine -> Int
-combo m = case operand m of
-  4 -> a m
-  5 -> b m
-  6 -> c m
-  n -> n
-
-data Machine = Machine { a :: Int, b :: Int, c :: Int, ip :: Int, instructions :: UArray Int Int }
-  deriving (Show, Eq)
+data Machine = Machine { a, b, c, ip :: Int, instructions :: UArray Int Int }
 
 parseInput :: String -> Machine
 parseInput = parseUnsafe $ do 
