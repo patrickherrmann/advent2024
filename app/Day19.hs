@@ -1,49 +1,53 @@
 module Day19 where
 
-import Prelude hiding (or, cycle)
 import Parsing
 import Data.Map (Map)
 import qualified Data.Map as Map
 
 part1 :: String -> String
-part1 input = show $ length $ filter (matches nfa) designs
+part1 input = show $ length $ filter (matches dfa) designs
   where
     (towels, designs) = parseInput input
-    nfa = buildNFA towels
+    dfa = combos towels
 
 part2 :: String -> String
-part2 _ = "Day 19b not implemented yet"
+part2 input = show $ sum $ map (matchCount dfa) designs
+  where
+    (towels, designs) = parseInput input
+    dfa = combos towels
 
-buildNFA :: [String] -> NFA
-buildNFA = nfaCycle . foldl1 nfaOr . map str
+combos :: [String] -> DFA
+combos = star . foldl1 alt . map literal
+
+data DFA = Node Int (Map Char DFA)
+
+literal :: String -> DFA
+literal = \case
+  [] -> Node 1 Map.empty
+  (c:cs) -> Node 0 $ Map.singleton c (literal cs)
+
+alt :: DFA -> DFA -> DFA
+alt (Node a m1) (Node b m2) = Node (a + b) (Map.unionWith alt m1 m2)
+
+app :: DFA -> DFA -> DFA
+app (Node a edges) other = if a > 0 then alt n' other else n'
+  where n' = Node a $ Map.map (`app` other) edges
+
+star :: DFA -> DFA
+star dfa = dfa `app` star dfa
+
+matches :: DFA -> String -> Bool
+matches dfa s = matchCount dfa s > 0
+
+matchCount :: DFA -> String -> Int
+matchCount (Node a m) = \case
+  [] -> a
+  (c:cs) -> case Map.lookup c m of
+    Just dfa -> matchCount dfa cs
+    Nothing -> 0
 
 type Towel = String
 type Design = String
-
-data NFA = Node Bool (Map Char NFA) deriving (Eq, Show)
-
-nfaEmpty :: NFA
-nfaEmpty = Node False Map.empty
-
-str :: String -> NFA
-str [] = Node True Map.empty
-str (c:cs) = Node False $ Map.singleton c (str cs)
-
-nfaOr :: NFA -> NFA -> NFA
-nfaOr (Node a m1) (Node b m2) = Node (a || b) (Map.unionWith nfaOr m1 m2)
-
-nfaAppend :: NFA -> NFA -> NFA
-nfaAppend (Node a edges) other = if a then n' `nfaOr` other else n'
-  where n' = Node a $ Map.map (`nfaAppend` other) edges
-
-nfaCycle :: NFA -> NFA
-nfaCycle nfa = let nfa' = nfaCycle nfa in nfa `nfaAppend` nfa'
-
-matches :: NFA -> String -> Bool
-matches (Node a _) [] = a
-matches (Node _ m) (c:cs) = case Map.lookup c m of
-  Nothing -> False
-  Just nfa -> matches nfa cs
 
 parseInput :: String -> ([Towel], [Design])
 parseInput = parseUnsafe $ do
