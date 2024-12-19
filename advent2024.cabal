@@ -47,6 +47,6 @@ executable advent2024
                  , Day24
                  , Day25
                  , Parsing
-    build-depends:    base ^>=4.17.2.1, containers, text, megaparsec, multiset, bytestring, multimap, array, MemoTrie, pqueue
+    build-depends:    base ^>=4.17.2.1, containers, text, megaparsec, multiset, bytestring, multimap, array, MemoTrie, pqueue, search-algorithms
     hs-source-dirs:   app
     ghc-options: -O2
