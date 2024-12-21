@@ -9,29 +9,28 @@ import Data.Sequence (Seq, pattern Empty, pattern (:<|))
 import qualified Data.Sequence as Seq 
 
 part1 :: String -> String
-part1 = show . length . filter (>= 100) . map snd . cheats . parseInput
+part1 = show . length . filter (>= 100) . cheats 2 . parseInput
 
 part2 :: String -> String
-part2 _ = "Day 20b not implemented yet"
+part2 = show . length . filter (>= 100) . ([2..20] >>=) . flip cheats . parseInput
 
 type Coord = (Int, Int)
 type Grid = UArray Coord Char
-type Cheat = ((Coord, Coord), Int)
 
-cheats :: Grid -> [Cheat]
-cheats g = path m start >>= cheatsFrom
+cheats :: Int -> Grid -> [Int]
+cheats n g = path m start >>= cheatsFrom
   where
     start = coordOf g 'S'
     m = bfs g
-    cheatsFrom (c, cost) = mapMaybe cheatTo (possibleCheats c)
+    cheatsFrom (c, cost) = mapMaybe cheatTo (distFrom c n)
       where
         cheatTo c' = do
           (_, cost') <- Map.lookup c' m
-          return ((c, c'), cost - cost' - 2)
+          return (cost - cost' - n)
 
 
-possibleCheats :: Coord -> [Coord]
-possibleCheats (x, y) = [(x + 2, y), (x - 2, y), (x, y + 2), (x, y - 2), (x + 1, y + 1), (x + 1, y - 1), (x - 1, y + 1), (x - 1, y - 1)]
+distFrom :: Coord -> Int -> [Coord]
+distFrom (x0, y0) n = [(x, y) | x <- [x0 - n .. x0 + n], y <- [y0 - n .. y0 + n], abs (x - x0) + abs (y - y0) == n]
 
 path :: Map Coord (PrevCoord, Int) -> Coord -> [(Coord, Int)]
 path dists c = case Map.lookup c dists of
@@ -44,7 +43,8 @@ bfs :: Grid -> Map Coord (PrevCoord, Int)
 bfs g = go (Seq.singleton s0) Map.empty
   where
     s0 = (coordOf g 'E', (-1, -1), 0)
-    neighbors (c@(x, y), _, cost) = zip3 [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)] (repeat c) (repeat (cost + 1))
+    neighbors (c, _, cost) = zip3 (moves c) (repeat c) (repeat (cost + 1))
+    moves (x, y) = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
     go q dists = case q of
       Empty -> dists
       s@(c, c', cost) :<| q' -> if Map.member c dists || g ! c == '#'
