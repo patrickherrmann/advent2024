@@ -12,23 +12,40 @@ complexity :: Int -> String -> Int
 complexity i code = numPart * presses
   where
     numPart = read $ filter (/= 'A') code
-    presses = numPresses i code
+    presses = numpadPresses i code
 
-numPresses :: Int -> String -> Int
-numPresses i code = go (3, 4) (map numCoord code)
+numpadPresses :: Int -> String -> Int
+numpadPresses = \case
+  0 -> length
+  i -> sum . map (fewestPresses (i - 1) . numpadPaths) . transitions
+
+dirpadPresses :: Int -> String -> Int
+dirpadPresses = memo2 $ \case
+  0 -> length
+  i -> sum . map (fewestPresses (i - 1) . dirpadPaths) . transitions
+
+fewestPresses :: Int -> [String] -> Int
+fewestPresses i paths = minimum [dirpadPresses i (p ++ "A") | p <- paths]
+
+transitions :: String -> [(Char, Char)]
+transitions code = zip ('A':code) code
+
+numpadPaths :: (Char, Char) -> [String]
+numpadPaths (x, y) = pathsAvoiding (numCoord ' ') (numCoord x) (numCoord y)
+
+dirpadPaths :: (Char, Char) -> [String]
+dirpadPaths (x, y) = pathsAvoiding (dirCoord ' ') (dirCoord x) (dirCoord y)
+
+pathsAvoiding :: (Int, Int) -> (Int, Int) -> (Int, Int) -> [String]
+pathsAvoiding gap a@(xa, ya) b@(xb, yb) 
+    | a == gap = []
+    | a == b = [""]
+    | xa == xb = [v]
+    | ya == yb = [h]
+    | otherwise = map (h ++) (pathsAvoiding gap (xb, ya) b) ++ map (v ++) (pathsAvoiding gap (xa, yb) b)
   where
-    go _ [] = 0
-    go c (x : xs) = minimum [dirPresses (i - 1) (s ++ "A") | s <- numTransitions c x] + go x xs
-
-memoDirPresses = memo2 dirPresses
-
-dirPresses :: Int -> String -> Int
-dirPresses i code
-  | i == 0 = length code
-  | otherwise = go (3, 1) (map dirCoord code)
-      where
-        go _ [] = 0
-        go c (x : xs) = minimum [memoDirPresses (i - 1) (s ++ "A") | s <- dirTransitions c x] + go x xs
+    h = if xb > xa then replicate (xb - xa) '>' else replicate (xa - xb) '<'
+    v = if yb > ya then replicate (yb - ya) 'v' else replicate (ya - yb) '^'
 
 numCoord :: Char -> (Int, Int)
 numCoord = \case
@@ -41,30 +58,15 @@ numCoord = \case
   '1' -> (1, 3)
   '2' -> (2, 3)
   '3' -> (3, 3)
+  ' ' -> (1, 4)
   '0' -> (2, 4)
   'A' -> (3, 4)
 
-numTransitions :: (Int, Int) -> (Int, Int) -> [String]
-numTransitions = transitions (1, 4)
-
 dirCoord :: Char -> (Int, Int)
 dirCoord = \case
+  ' ' -> (1, 1)
   '^' -> (2, 1)
   'A' -> (3, 1)
   '<' -> (1, 2)
   'v' -> (2, 2)
   '>' -> (3, 2)
-
-dirTransitions :: (Int, Int) -> (Int, Int) -> [String]
-dirTransitions = transitions (1, 1)
-
-transitions :: (Int, Int) -> (Int, Int) -> (Int, Int) -> [String]
-transitions gap a@(xa, ya) b@(xb, yb) 
-    | a == gap = []
-    | a == b = [""]
-    | xa == xb = [v]
-    | ya == yb = [h]
-    | otherwise = map (h ++) (transitions gap (xb, ya) b) ++ map (v ++) (transitions gap (xa, yb) b)
-  where
-    h = if xb > xa then replicate (xb - xa) '>' else replicate (xa - xb) '<'
-    v = if yb > ya then replicate (yb - ya) 'v' else replicate (ya - yb) '^'
