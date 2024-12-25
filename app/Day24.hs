@@ -4,6 +4,8 @@ import Parsing
 import Data.Map (Map, (!))
 import qualified Data.Map as Map
 import Data.List
+import Debug.Trace
+import Text.Printf
 
 part1 :: String -> String
 part1 = show . readReg 'z' . parseInput
@@ -33,8 +35,43 @@ add a b = readReg 'z' . writeReg 'x' a . writeReg 'y' b
 
 type Device = Map String Port
 type Reg = Char -- x, y, z
-data Op = OR | AND | XOR deriving (Show)
+data Op = OR | AND | XOR deriving (Show, Eq)
 data Port = L Bool | Gate Op String String deriving (Show)
+
+instance Eq Port where
+  L x == L y = x == y
+  Gate o a b == Gate o' a' b' = o == o' && ((a == a' && b == b') || (a == b' && b == a'))
+  _ == _ = False
+
+adder :: [(Port, String)] -> Int -> Either String (String, String)
+adder pn = \case
+  0 -> do
+    z0 <- findGate (Gate XOR "x00" "y00") pn
+    c0out <- findGate (Gate AND "x00" "y00") pn
+    return (z0, c0out)
+  n -> do
+    (z0, c0out) <- adder pn (n - 1)
+    s1 <- findGate (Gate XOR (x n) (y n)) pn
+    z1 <- findGate (Gate XOR s1 c0out) pn
+    traceM $ (z n) ++ " = " ++ z1
+    dcarry <- findGate (Gate AND (x n) (y n)) pn
+    icarry <- findGate (Gate AND s1 c0out) pn
+    c1out <- findGate (Gate OR dcarry icarry) pn
+    return (z1, c1out)
+
+findGate :: Port -> [(Port, String)] -> Either String String
+findGate p pn = case lookup p pn of
+  Just n -> Right n
+  Nothing -> Left $ "gate not found: " ++ show p
+
+x :: Int -> String
+x n = "x" ++ printf "%02d" n
+
+y :: Int -> String
+y n = "y" ++ printf "%02d" n
+
+z :: Int -> String
+z n = "z" ++ printf "%02d" n
 
 regPorts :: Reg -> Device -> [String]
 regPorts c = sort . filter (\n -> head n == c) . Map.keys
@@ -60,6 +97,11 @@ signal d n = case d ! n of
     AND -> signal d a && signal d b
     XOR -> signal d a /= signal d b
 
+toExpr :: Device -> String -> String
+toExpr d n = case d ! n of
+  L x -> n
+  Gate o a b -> n ++ "@(" ++ toExpr d a ++ " " ++ show o ++ " " ++ toExpr d b ++ ")"
+
 upstream :: Device -> String -> [String]
 upstream d n = case d ! n of
   L _ -> []
@@ -67,6 +109,10 @@ upstream d n = case d ! n of
 
 swap :: String -> String -> Device -> Device
 swap a b d = Map.insert a (d ! b) $ Map.insert b (d ! a) d
+
+portNames :: Device -> [(Port, String)]
+portNames = map swap . Map.toList
+  where swap (n, p) = (p, n)
 
 parseInput :: String -> Device
 parseInput = parseUnsafe $ do
