@@ -6,6 +6,8 @@ import Data.PQueue.Prio.Min (MinPQueue, pattern (:<), pattern Empty)
 import qualified Data.PQueue.Prio.Min as PQ
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Maybe (mapMaybe)
 import Debug.Trace
 
@@ -42,9 +44,9 @@ goodSpots g = nub $ map fst $ go (endStates g) []
                     in go (parents ++ ss) (s : visited)
 
 search :: Grid -> Result
-search g = go (PQ.singleton 0 (startState g)) [] (Map.singleton (startState g) (0, []))
+search g = go (PQ.singleton 0 (startState g)) (Set.empty) (Map.singleton (startState g) (0, []))
   where
-    go :: MinPQueue Cost State -> [State] -> Result -> Result
+    go :: MinPQueue Cost State -> Set State -> Result -> Result
     go q visited result = case q of
       Empty -> error "No path found"
       (cost, s@(c, dir)) :< q' -> case g ! c of
@@ -52,8 +54,8 @@ search g = go (PQ.singleton 0 (startState g)) [] (Map.singleton (startState g) (
         '#' -> go q' visited result
         _ -> go q'' visited' result'
           where
-            visited' = s : visited
-            ns = filter (not . (`elem` visited) . fst) $ neighbors (s, getLineage s result)
+            visited' = Set.insert s visited
+            ns = filter (not . (`Set.member` visited) . fst) $ neighbors (s, getLineage s result)
             (q'', result') = foldl step (q', result) ns
             step (_q, _r) (ns, (altcost, altparents))
                 | altcost == cost = (_q, Map.insert ns (cost, altparents ++ parents) _r)
