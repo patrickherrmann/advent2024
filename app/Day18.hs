@@ -9,13 +9,21 @@ part1 :: String -> String
 part1 = show . fst . fromJust . path . take 1024 . parseInput
 
 part2 :: String -> String
-part2 input = show $ blocks !! (disconnection - 1)
+part2 input = show $ blocks !! firstDisconnected
   where
-    disconnection = fromJust $ find (\n -> isNothing $ path $ take n blocks) [1024..]
+    firstDisconnected = search 1024 (length blocks) disconnected - 1
+    disconnected n = isNothing $ path $ take n blocks
     blocks = parseInput input
 
 path :: [Coord] -> Maybe (Int, [Coord])
 path blocks = aStar (neighbors `pruning` (`elem` blocks)) (\_ _ -> 1) (manhattan (70, 70)) (== (70, 70)) (0, 0)
+
+search :: Int -> Int -> (Int -> Bool) -> Int
+search lo hi p
+  | lo == hi = lo
+  | p mid = search lo mid p
+  | otherwise = search (mid + 1) hi p
+  where mid = (lo + hi) `div` 2
 
 type Coord = (Int, Int)
 
