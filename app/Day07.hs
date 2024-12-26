@@ -10,18 +10,17 @@ part2 :: String -> String
 part2 = show . sum . map fst . filter (possible [(*), (+), (||)]) . parseEquations
 
 (||) :: Op
-a || b = read $ show a ++ show b
+a || b = a * 10 ^ (length (show b)) + b
 
 type Equation = (Integer, [Integer])
 type Op = Integer -> Integer -> Integer
 
 possible :: [Op] -> Equation -> Bool
-possible ops (lhs, x:xs) = any (== lhs) $ values ops [x] xs
-
-values :: [Op] -> [Integer] -> [Integer] -> [Integer]
-values ops acc = \case
-  [] -> acc
-  x:xs -> values ops (ops <*> acc <*> [x] ) xs
+possible ops (lhs, rhs) = go (head rhs) (tail rhs)
+  where
+    go acc [] = acc == lhs
+    go acc _ | acc > lhs = False
+    go acc (x:xs) = any id [go (acc `op` x) xs | op <- ops]
 
 parseEquations :: String -> [Equation]
 parseEquations = parseUnsafe $ equation `sepBy` newline

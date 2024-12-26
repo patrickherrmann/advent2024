@@ -8,17 +8,19 @@ part1 :: String -> String
 part1 = show . sum . map (last . secrets . read) . lines
 
 part2 :: String -> String
-part2 = show . maximum . Map.elems . (Map.unionsWith (+)) . map (buys . prices . read) . lines
+part2 = show . maximum . Map.elems . Map.unionsWith (+) . map (buys . prices . read) . lines
 
 type Secret = Int
 type Price = Int
 type Signal = (Int, Int, Int, Int)
 
 buys :: [Price] -> Map Signal Price
-buys ps = go Map.empty (zip (tail ps) (diffs ps))
-  where
-    go m xs@((_, d1):(_, d2):(_, d3):(p, d4):_) = go (Map.insertWith (flip const) (d1, d2, d3, d4) p m) (tail xs)
-    go m _ = m
+buys ps = Map.fromListWith (flip const) $ zip (quads (diffs ps)) (drop 4 ps)
+
+quads :: [a] -> [(a, a, a, a)]
+quads = \case
+  xs@(a:b:c:d:_) -> (a, b, c, d) : quads (tail xs)
+  _ -> []
 
 diffs :: [Price] -> [Int]
 diffs = zipWith (-) =<< tail
