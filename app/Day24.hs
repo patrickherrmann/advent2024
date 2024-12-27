@@ -5,59 +5,56 @@ import Data.Map (Map, (!))
 import qualified Data.Map as Map
 import Data.List
 import Text.Printf
+import Data.MemoTrie
+import Data.Maybe
+import Data.Functor
+import Control.Monad (msum)
 
 part1 :: String -> String
 part1 = show . readReg 'z' . parseInput
 
 part2 :: String -> String
-part2 = intercalate "," . sort . (>>= \(a, b) -> [a, b]) . repair . parseInput
+part2 = intercalate "," . sort . repair . parseInput
 
-type Device = Map String Port
-type Reg = Char -- x, y, z
+type Device = Map String Wire
+data Wire = Input Bool | Gate Op String String deriving (Show)
 data Op = OR | AND | XOR deriving (Show, Eq)
-data Port = L Bool | Gate Op String String deriving (Show)
 type Swap = (String, String)
 
-instance Eq Port where
-  L x == L y = x == y
+instance Eq Wire where
   Gate o a b == Gate o' a' b' = o == o' && ((a == a' && b == b') || (a == b' && b == a'))
   _ == _ = False
 
-repair :: Device -> [Swap]
-repair d = go [] d
+repair :: Device -> [String]
+repair = go []
   where
-    go swaps d' = case adder (portNames d') 44 of
-      Right _ -> swaps
-      Left (a, b) -> go ((a, b) : swaps) (swap a b d')
+    go swapped d = case adder (wireNames d) 44 of
+      Right ("z44", "z45") -> swapped
+      Right (z, cout) -> z:cout:swapped
+      Left (a, b) -> go (a:b:swapped) (swap a b d)
 
-adder :: [(Port, String)] -> Int -> Either Swap (String, String)
-adder pn = \case
+adder :: [(Wire, String)] -> Int -> Either Swap (String, String)
+adder wn = \case
   0 -> do
-    z <- findGate (Gate XOR (x_ 0) (y_ 0)) pn
-    cout <- findGate (Gate AND (x_ 0) (y_ 0)) pn
+    z <- findGate (Gate XOR (x_ 0) (y_ 0))
+    cout <- findGate (Gate AND (x_ 0) (y_ 0))
     return (z, cout)
   n -> do
-    (_, cin) <- adder pn (n - 1)
-    s <- findGate (Gate XOR (x_ n) (y_ n)) pn
-    z <- findGate (Gate XOR s cin) pn
-    dcarry <- findGate (Gate AND (x_ n) (y_ n)) pn
-    icarry <- findGate (Gate AND s cin) pn
-    cout <- findGate (Gate OR dcarry icarry) pn
+    (_, cin) <- adder wn (n - 1)
+    s <- findGate (Gate XOR (x_ n) (y_ n))
+    z <- findGate (Gate XOR s cin)
+    dcarry <- findGate (Gate AND (x_ n) (y_ n))
+    icarry <- findGate (Gate AND s cin)
+    cout <- findGate (Gate OR dcarry icarry)
     return (z, cout)
+  where
+    x_ = ('x':) . printf "%02d"
+    y_ = ('y':) . printf "%02d"
+    findGate g = case lookup g wn of
+      Just n -> Right n
+      Nothing -> Left $ fromJust $ msum [matchGate g w | (w, _) <- wn]
 
-findGate :: Port -> [(Port, String)] -> Either Swap String
-findGate p pn = case lookup p pn of
-  Just n -> Right n
-  Nothing -> Left $ findSwap p (map fst pn)
-
-findSwap :: Port -> [Port] -> Swap
-findSwap p = \case
-  [] -> error "no swap found"
-  g:gs -> case matchGate p g of
-    Just s -> s
-    Nothing -> findSwap p gs
-
-matchGate :: Port -> Port -> Maybe Swap
+matchGate :: Wire -> Wire -> Maybe Swap
 matchGate (Gate op a b) = \case
   Gate op' a' b' | op' == op && a' == a -> Just (b, b')
   Gate op' a' b' | op' == op && b' == a -> Just (b, a')
@@ -65,61 +62,48 @@ matchGate (Gate op a b) = \case
   Gate op' a' b' | op' == op && b' == b -> Just (a, a')
   _ -> Nothing
 
-x_ :: Int -> String
-x_ = ('x':) . printf "%02d"
-
-y_ :: Int -> String
-y_ = ('y':) . printf "%02d"
-
-z_ :: Int -> String
-z_ = ('z':) . printf "%02d"
-
-regPorts :: Reg -> Device -> [String]
-regPorts c = sort . filter (\n -> head n == c) . Map.keys
+regWires :: Char -> Device -> [String]
+regWires c = sort . filter (\n -> head n == c) . Map.keys
 
 fromBits :: [Bool] -> Int
 fromBits = foldr (\b n -> n * 2 + fromEnum b) 0
 
-readReg :: Reg -> Device -> Int
-readReg c d = fromBits $ map (readPort d) (regPorts c d)
+readReg :: Char -> Device -> Int
+readReg c d = fromBits $ map (probe d) (regWires c d)
 
-readPort :: Device -> String -> Bool
-readPort d n = case d ! n of
-  L x -> x
-  Gate o a b -> case o of
-    OR -> readPort d a || readPort d b
-    AND -> readPort d a && readPort d b
-    XOR -> readPort d a /= readPort d b
+probe :: Device -> String -> Bool
+probe d = go
+  where
+    go = memo $ \n -> case d ! n of
+      Input x -> x
+      Gate o a b -> case o of
+        OR -> go a || go b
+        AND -> go a && go b
+        XOR -> go a /= go b
 
 swap :: String -> String -> Device -> Device
 swap a b d = Map.insert a (d ! b) $ Map.insert b (d ! a) d
 
-portNames :: Device -> [(Port, String)]
-portNames = map swap . Map.toList
-  where swap (n, p) = (p, n)
+wireNames :: Device -> [(Wire, String)]
+wireNames = map (\(a, b) -> (b, a)) . Map.toList
 
 parseInput :: String -> Device
 parseInput = parseUnsafe $ do
-    initWires <- initWire `sepEndBy` newline
-    newline
+    inputs <- input `sepEndBy` newline
+    void newline
     gates <- gate `sepEndBy` newline
-    return $ Map.fromList $ initWires ++ gates
+    return $ Map.fromList $ inputs ++ gates
   where
-    name = many alphaNumChar
-    bool = string "0" *> return False
-      <|> string "1" *> return True
-    op = string "AND" *> return AND
-      <|> string "OR" *> return OR
-      <|> string "XOR" *> return XOR
-    initWire = do
-      n <- name
-      string ": "
-      w <- bool
-      return (n, L w)
+    name = some alphaNumChar
+    bool = string "0" $> False <|> string "1" $> True
+    op = string "AND" $> AND <|> string "OR" $> OR <|> string "XOR" $> XOR
+    input = do
+      n <- name <* string ": "
+      b <- bool
+      pure (n, Input b)
     gate = do
       a <- name
-      o <- char ' ' *> op <* char ' '
+      o <- space *> op <* space
       b <- name
-      string " -> "
-      n <- name
-      return (n, Gate o a b)
+      n <- string " -> " *> name
+      pure (n, Gate o a b)
